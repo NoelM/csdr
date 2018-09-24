@@ -28,15 +28,24 @@
 
 LIBSOURCES =  fft_fftw.c libcsdr_wrapper.c 
 #SOURCES = csdr.c $(LIBSOURCES)
-cpufeature = $(if $(findstring $(1),$(shell cat /proc/cpuinfo)),$(2))
-PARAMS_SSE = $(call cpufeature,sse,-msse) $(call cpufeature,sse2,-msse2) $(call cpufeature,sse3,-msse3) $(call cpufeature,sse4a,-msse4a) $(call cpufeature,sse4_1,-msse4.1) $(call cpufeature,sse4_2,-msse4.2 -msse4) -mfpmath=sse 
+OS = $(shell uname)
+
+ifeq ($(OS), Darwin)
+cpufeature = $(if $(findstring $(1),$(shell sysctl -n machdep.cpu)),$(2))
+PARAMS_SSE = $(call cpufeature,SSE,-msse) $(call cpufeature,SSE2,-msse2) $(call cpufeature,SSE3,-msse3) $(call cpufeature,SSE4a,-msse4a) $(call cpufeature,SSE4_1,-msse4.1) $(call cpufeature,SSE4_2,-msse4.2 -msse4) -mfpmath=sse
+PARAMS_LOOPVECT = -O3 -ffast-math
+else
+cpufeature = $(if $(findstring $(1),$(shell cat /proc/info)),$(2))
+PARAMS_SSE = $(call cpufeature,sse,-msse) $(call cpufeature,sse2,-msse2) $(call cpufeature,sse3,-msse3) $(call cpufeature,sse4a,-msse4a) $(call cpufeature,sse4_1,-msse4.1) $(call cpufeature,sse4_2,-msse4.2 -msse4) -mfpmath=sse
+PARAMS_LOOPVECT = -O3 -ffast-math -fdump-tree-vect-details -dumpbase dumpvect
+endif
+
 PARAMS_NEON = -mfloat-abi=hard -march=armv7-a -mtune=cortex-a8 -mfpu=neon -mvectorize-with-neon-quad -funsafe-math-optimizations -Wformat=0 -DNEON_OPTS
 #tnx Jan Szumiec for the Raspberry Pi support
 PARAMS_RASPI = -mfloat-abi=hard -mcpu=arm1176jzf-s -mfpu=vfp -funsafe-math-optimizations -Wformat=0
 PARAMS_ARM = $(if $(call cpufeature,BCM2708,dummy-text),$(PARAMS_RASPI),$(PARAMS_NEON))
-PARAMS_SIMD = $(if $(call cpufeature,sse,dummy-text),$(PARAMS_SSE),$(PARAMS_ARM))
-PARAMS_LOOPVECT = -O3 -ffast-math -fdump-tree-vect-details -dumpbase dumpvect
-PARAMS_LIBS = -g -lm -lrt -lfftw3f -DUSE_FFTW -DLIBCSDR_GPL -DUSE_IMA_ADPCM
+PARAMS_SIMD = $(if $(call cpufeature,SSE,dummy-text),$(PARAMS_SSE),$(PARAMS_ARM))
+PARAMS_LIBS = -g -lm -lfftw3f -DUSE_FFTW -DLIBCSDR_GPL -DUSE_IMA_ADPCM
 PARAMS_SO = -fpic  
 PARAMS_MISC = -Wno-unused-result
 #DEBUG_ON = 0 #debug is always on by now (anyway it could be compiled with `make DEBUG_ON=1`)
@@ -53,7 +62,7 @@ libcsdr.so: fft_fftw.c fft_rpi.c libcsdr_wrapper.c libcsdr.c libcsdr_gpl.c fastd
 	@echo Auto-detected optimization parameters: $(PARAMS_SIMD)
 	@echo
 	rm -f dumpvect*.vect
-	gcc -std=gnu99 $(PARAMS_LOOPVECT) $(PARAMS_SIMD) $(LIBSOURCES) $(PARAMS_LIBS) $(PARAMS_MISC) -fpic -shared -Wl,-soname,libcsdr.so.$(SOVERSION) -o libcsdr.so.$(SOVERSION)
+	gcc -std=gnu99 $(PARAMS_LOOPVECT) $(PARAMS_SIMD) $(LIBSOURCES) $(PARAMS_LIBS) $(PARAMS_MISC) -fpic -shared -o libcsdr.so.$(SOVERSION)
 	@ln -fs libcsdr.so.$(SOVERSION) libcsdr.so
 ifeq ($(PARSEVECT),yes)
 	-./parsevect dumpvect*.vect
