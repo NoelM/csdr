@@ -35,7 +35,7 @@ cpufeature = $(if $(findstring $(1),$(shell sysctl -n machdep.cpu)),$(2))
 PARAMS_SSE = $(call cpufeature,SSE,-msse) $(call cpufeature,SSE2,-msse2) $(call cpufeature,SSE3,-msse3) $(call cpufeature,SSE4a,-msse4a) $(call cpufeature,SSE4_1,-msse4.1) $(call cpufeature,SSE4_2,-msse4.2 -msse4) -mfpmath=sse
 PARAMS_LOOPVECT = -O3 -ffast-math
 else
-cpufeature = $(if $(findstring $(1),$(shell cat /proc/info)),$(2))
+cpufeature = $(if $(findstring $(1),$(shell cat /proc/cpuinfo)),$(2))
 PARAMS_SSE = $(call cpufeature,sse,-msse) $(call cpufeature,sse2,-msse2) $(call cpufeature,sse3,-msse3) $(call cpufeature,sse4a,-msse4a) $(call cpufeature,sse4_1,-msse4.1) $(call cpufeature,sse4_2,-msse4.2 -msse4) -mfpmath=sse
 PARAMS_LOOPVECT = -O3 -ffast-math -fdump-tree-vect-details -dumpbase dumpvect
 endif
